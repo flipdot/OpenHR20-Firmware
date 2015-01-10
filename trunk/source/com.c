@@ -127,7 +127,8 @@ static char COM_getchar(void) {
 	if (rx_buff_in!=rx_buff_out) {
 		c=rx_buff[rx_buff_out++];
 		rx_buff_out%=RX_BUFF_SIZE;
-    	if (c=='\n') COM_requests--;
+   	if (c=='\n')
+			COM_requests--;
 	} else {
     	COM_requests=0;
         c='\0';
@@ -361,13 +362,11 @@ void COM_commad_parse (void) {
   	c=COM_getchar();
 		if(c == ':'){
 			print_s_p(PSTR("hallo"));	
-			c = 0;
+			c = '\0';
 		}	
 	}
-	if(c == '\0'){
-		COM_putchar('\r');
-		COM_putchar('\n');
-	}
+	COM_putchar('\r');
+	COM_putchar('\n');
 	COM_flush();
 }
 
@@ -480,6 +479,9 @@ void COM_commad_parse_old (void) {
             break;
 		//case '\n':
 		//case '\0':
+				case 'X':
+						 print_s_p(PSTR("Hallo "));
+						 break;
 		default:
 			c='\0';
 			break;
