@@ -62,6 +62,8 @@ static uint8_t tx_buff_out=0;
 static uint8_t rx_buff_in=0;
 static uint8_t rx_buff_out=0;
 
+void print_s(char *str);
+
 /*!
  *******************************************************************************
  *  \brief transmit bytes
@@ -369,6 +371,13 @@ void COM_commad_parse (void) {
 	COM_putchar('\n');
 	COM_flush();
 }
+
+void print_s(char *str){
+	while(*str !=0){
+		COM_putchar(*str++);
+	}
+}
+
 
 /*!
  *******************************************************************************
