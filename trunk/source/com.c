@@ -355,6 +355,21 @@ static void print_idx(char t) {
 }
 
 
+void COM_commad_parse (void) {
+	char c;
+	while (COM_requests) {
+  	c=COM_getchar();
+		if(c == ':'){
+			print_s_p(PSTR("hallo"));	
+			c = 0;
+		}	
+	}
+	if(c == '\0'){
+		COM_putchar('\r');
+		COM_putchar('\n');
+	}
+	COM_flush();
+}
 
 /*!
  *******************************************************************************
@@ -377,7 +392,7 @@ static void print_idx(char t) {
  *  \note   Mxx\n - set mode to 0=manu 1=auto
  *	
  ******************************************************************************/
-void COM_commad_parse (void) {
+void COM_commad_parse_old (void) {
 	char c;
 	while (COM_requests) {
         switch(c=COM_getchar()) {
