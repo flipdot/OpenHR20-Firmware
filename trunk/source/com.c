@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <avr/wdt.h>
+#include <string.h>
 
 
 #include "config.h"
@@ -357,14 +358,44 @@ static void print_idx(char t) {
     COM_putchar('=');
 }
 
+char can_buffer[50];
+typedef enum{
+	CAN_STATE_WAIT_SOH = 0,
+	CAN_STATE_NAME,
+	CAN_STATE_CMD
+} CAN_STATE;
 
 void COM_commad_parse (void) {
 	char c;
+	unsigned char i = 0;	
+	CAN_STATE state = CAN_STATE_WAIT_SOH;
+
 	while (COM_requests) {
   	c=COM_getchar();
 		if(c == ':'){
-			print_s_p(PSTR("hallo"));	
-			c = '\0';
+			i = 0;
+			state = CAN_STATE_NAME;
+		}else{
+			switch(state){
+				case CAN_STATE_WAIT_SOH:
+					break;
+				case CAN_STATE_NAME: {
+					if(c != ' '){
+						can_buffer[i++] = c;
+						break;
+					}
+
+					can_buffer[i++] = '\0';
+					if(0 != strncmp_P(can_buffer, PSTR("theemin"),8)){
+						state = CAN_STATE_WAIT_SOH;
+						break;
+					}
+
+					print_s_p(PSTR("hallo "));	
+					print_s(can_buffer);
+					break;
+				}
+			}
 		}	
 	}
 	COM_putchar('\r');
