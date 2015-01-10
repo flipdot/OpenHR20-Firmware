@@ -390,10 +390,28 @@ void COM_commad_parse (void) {
 						state = CAN_STATE_WAIT_SOH;
 						break;
 					}
-
-					print_s_p(PSTR("hallo "));	
-					print_s(can_buffer);
+					state = CAN_STATE_CMD;
+					i = 0;
+					//print_s_p(PSTR("hallo "));	
+					//print_s(can_buffer);
 					break;
+				}
+				case CAN_STATE_CMD:{
+						
+					if(c != ' ' && c != '\n'){
+						can_buffer[i++] = c;
+						break;
+					}
+
+					can_buffer[i++] = '\0';
+					if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
+						print_decXXXX(temp_average);
+						break;
+					}else{
+						state = CAN_STATE_WAIT_SOH;
+						print_s_p(PSTR("unknown cmd"));
+						break;
+					}
 				}
 			}
 		}	
