@@ -362,7 +362,8 @@ char can_buffer[50];
 typedef enum{
 	CAN_STATE_WAIT_SOH = 0,
 	CAN_STATE_NAME,
-	CAN_STATE_CMD
+	CAN_STATE_CMD,
+	CAN_STATE_CMD_SET_TEMP
 } CAN_STATE;
 
 void COM_commad_parse (void) {
@@ -397,21 +398,47 @@ void COM_commad_parse (void) {
 					break;
 				}
 				case CAN_STATE_CMD:{
-						
 					if(c != ' ' && c != '\n'){
 						can_buffer[i++] = c;
 						break;
 					}
-
 					can_buffer[i++] = '\0';
+					i = 0;
+					state = CAN_STATE_WAIT_SOH;
 					if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
 						print_decXXXX(temp_average);
 						break;
+					}else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),14)){
+						//state = CAN_STATE_CMD_SET_TEMP;
+
+						if (COM_hex_parse(1*2)!='\0') {
+							print_s_p(PSTR("wrong param"));
+							break; 
+						}
+						if (com_hex[0]<TEMP_MIN-1) {
+							print_s_p(PSTR("temp too low"));
+							break; 
+						}
+						if (com_hex[0]>TEMP_MAX+1) {
+							print_s_p(PSTR("temp too high"));
+							break; 
+						}
+						CTL_set_temp(com_hex[0]);
+						print_s_p(PSTR("OK"));
+						break;
 					}else{
-						state = CAN_STATE_WAIT_SOH;
 						print_s_p(PSTR("unknown cmd"));
 						break;
 					}
+				}
+				case CAN_STATE_CMD_SET_TEMP:{
+					if(c != '\n'){
+						can_buffer[i++] = c;
+						break;
+					}
+					can_buffer[i++] = '\0';
+					state = CAN_STATE_WAIT_SOH;
+
 				}
 			}
 		}	
