@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <avr/wdt.h>
+#include <util/delay.h>
 #include <string.h>
 
 
@@ -238,7 +239,7 @@ static void print_s_p(const char * s) {
  *  \note
  ******************************************************************************/
 static void print_version(void) {
-	print_s_p(PSTR(VERSION_STRING "\n"));
+	//	print_s_p(PSTR(VERSION_STRING "\n"));
 }
 
 
@@ -263,6 +264,7 @@ void COM_init(void) {
  *  \note
  ******************************************************************************/
 void COM_print_debug(int8_t valve) {
+	return;
 	print_s_p(PSTR("D: "));
     print_hexXX(RTC_GetDayOfWeek()+0xd0);
 	COM_putchar(' ');
@@ -359,22 +361,31 @@ static void print_idx(char t) {
 }
 
 char can_buffer[50];
+char can_checksum[10];
 typedef enum{
 	CAN_STATE_WAIT_SOH = 0,
 	CAN_STATE_NAME,
 	CAN_STATE_CMD,
+    CAN_STATE_CHECKSUM,
 	CAN_STATE_CMD_SET_TEMP
 } CAN_STATE;
 
 void COM_commad_parse (void) {
+    static unsigned short checksum = 0;
+    static unsigned short checksumRead = 0;
 	char c;
 	unsigned char i = 0;	
 	CAN_STATE state = CAN_STATE_WAIT_SOH;
 
 	while (COM_requests) {
-  	c=COM_getchar();
+      	c=COM_getchar();
+        if(state != CAN_STATE_CHECKSUM){
+            checksum += c;
+        }
 		if(c == ':'){
 			i = 0;
+            checksum = c;
+            can_checksum[0] = 0;
 			state = CAN_STATE_NAME;
 		}else{
 			switch(state){
@@ -398,39 +409,60 @@ void COM_commad_parse (void) {
 					break;
 				}
 				case CAN_STATE_CMD:{
-					if(c != ' ' && c != '\n'){
+					if(c != ' '){
 						can_buffer[i++] = c;
 						break;
 					}
 					can_buffer[i++] = '\0';
 					i = 0;
-					state = CAN_STATE_WAIT_SOH;
-					if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
-						print_decXXXX(temp_average);
-						break;
-					}else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),14)){
-						//state = CAN_STATE_CMD_SET_TEMP;
-
-						if (COM_hex_parse(1*2)!='\0') {
-							print_s_p(PSTR("wrong param"));
-							break; 
-						}
-						if (com_hex[0]<TEMP_MIN-1) {
-							print_s_p(PSTR("temp too low"));
-							break; 
-						}
-						if (com_hex[0]>TEMP_MAX+1) {
-							print_s_p(PSTR("temp too high"));
-							break; 
-						}
-						CTL_set_temp(com_hex[0]);
-						print_s_p(PSTR("OK"));
-						break;
-					}else{
-						print_s_p(PSTR("unknown cmd"));
-						break;
-					}
+					state = CAN_STATE_CHECKSUM;
+                    break;
 				}
+                case CAN_STATE_CHECKSUM:
+                    if(c != '\n'){
+                        can_checksum[i++] = c; 
+                        break;
+                    } 
+                    can_checksum[i] = 0;
+                    //remove \r
+                    checksumRead = atoi(can_checksum+1);
+                    if(checksum == checksumRead){
+                        _delay_ms(2);
+                        if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
+                            print_decXXXX(temp_average);
+                            break;
+                        }else	if(0 == strncmp_P(can_buffer, PSTR("getTargetTemp"),14)){
+                            print_decXXXX(calc_temp(CTL_temp_wanted_last));
+                            break;
+                        }else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),14)){
+                            //state = CAN_STATE_CMD_SET_TEMP;
+
+                            if (COM_hex_parse(1*2)!='\0') {
+                                print_s_p(PSTR("wrong param"));
+                                break; 
+                            }
+                            if (com_hex[0]<TEMP_MIN-1) {
+                                print_s_p(PSTR("temp too low"));
+                                break; 
+                            }
+                            if (com_hex[0]>TEMP_MAX+1) {
+                                print_s_p(PSTR("temp too high"));
+                                break; 
+                            }
+                            CTL_set_temp(com_hex[0]);
+                            print_s_p(PSTR("OK"));
+                            break;
+                        }else{
+                            print_s_p(PSTR("unknown cmd"));
+                            break;
+                        }
+                    }else{
+                        print_s_p(PSTR("wrong crc "));
+                    }
+
+                    state = CAN_STATE_WAIT_SOH;
+                    break;
+
 				case CAN_STATE_CMD_SET_TEMP:{
 					if(c != '\n'){
 						can_buffer[i++] = c;
