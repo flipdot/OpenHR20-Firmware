@@ -64,6 +64,8 @@ static uint8_t tx_buff_out=0;
 static uint8_t rx_buff_in=0;
 static uint8_t rx_buff_out=0;
 
+
+
 void print_s(char *str);
 
 /*!
@@ -373,6 +375,7 @@ typedef enum{
 void COM_commad_parse (void) {
     static unsigned short checksum = 0;
     static unsigned short checksumRead = 0;
+    char *ptr;
 	char c;
 	unsigned char i = 0;	
 	CAN_STATE state = CAN_STATE_WAIT_SOH;
@@ -427,39 +430,49 @@ void COM_commad_parse (void) {
                     //remove \r
                     checksumRead = atoi(can_checksum+1);
                     if(checksum == checksumRead){
-                        _delay_ms(2);
+                        for(unsigned char kk=0; kk < 100; kk++){
+                            _delay_ms(2);
+                        }
                         if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
-                            print_decXXXX(temp_average);
-                            break;
+                            snprintf(can_buffer,10,"%d",temp_average);
                         }else	if(0 == strncmp_P(can_buffer, PSTR("getTargetTemp"),14)){
-                            print_decXXXX(calc_temp(CTL_temp_wanted_last));
-                            break;
+                            snprintf(can_buffer,10,"%d",calc_temp(CTL_temp_wanted_last));
+
                         }else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),14)){
                             //state = CAN_STATE_CMD_SET_TEMP;
 
                             if (COM_hex_parse(1*2)!='\0') {
                                 print_s_p(PSTR("wrong param"));
-                                break; 
+                                goto resetCanState;
                             }
                             if (com_hex[0]<TEMP_MIN-1) {
                                 print_s_p(PSTR("temp too low"));
-                                break; 
+                                goto resetCanState;
                             }
                             if (com_hex[0]>TEMP_MAX+1) {
                                 print_s_p(PSTR("temp too high"));
-                                break; 
+                                goto resetCanState;
                             }
                             CTL_set_temp(com_hex[0]);
                             print_s_p(PSTR("OK"));
-                            break;
                         }else{
                             print_s_p(PSTR("unknown cmd"));
-                            break;
                         }
+                        checksum = 0;
+                        ptr = can_buffer;
+                        while(*ptr){
+                            checksum += *ptr++;
+                        }
+                        print_s(can_buffer);
+                        snprintf(can_buffer,10," #%d\r\n", checksum);
+                        print_s(can_buffer);
+                        
+                        COM_flush();
                     }else{
                         print_s_p(PSTR("wrong crc "));
+                        COM_flush();
                     }
-
+resetCanState:
                     state = CAN_STATE_WAIT_SOH;
                     break;
 
@@ -475,9 +488,6 @@ void COM_commad_parse (void) {
 			}
 		}	
 	}
-	COM_putchar('\r');
-	COM_putchar('\n');
-	COM_flush();
 }
 
 void print_s(char *str){
