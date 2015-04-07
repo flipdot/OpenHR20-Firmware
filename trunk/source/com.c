@@ -378,7 +378,7 @@ void COM_commad_parse (void) {
     char *ptr;
 	char c;
 	unsigned char i = 0;	
-	CAN_STATE state = CAN_STATE_WAIT_SOH;
+	static CAN_STATE state = CAN_STATE_WAIT_SOH;
 
 	while (COM_requests) {
       	c=COM_getchar();
