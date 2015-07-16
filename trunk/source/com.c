@@ -35,8 +35,12 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(CROSSWORKS)
+#include <avr.h>
+#else
 #include <avr/wdt.h>
 #include <util/delay.h>
+#endif
 #include <string.h>
 
 
@@ -54,7 +58,7 @@
 
 
 #define TX_BUFF_SIZE 128
-#define RX_BUFF_SIZE 32
+#define RX_BUFF_SIZE 128
 
 static char tx_buff[TX_BUFF_SIZE];
 static char rx_buff[RX_BUFF_SIZE];
@@ -114,7 +118,7 @@ void COM_rx_char_isr(char c) {
 			rx_buff_out++;
 			rx_buff_out%=RX_BUFF_SIZE;
 		}
-		if (c=='\n') {
+		if (c=='\n' || c=='\r') {
 			task |= TASK_COM;
 			COM_requests++;
 		}
@@ -378,6 +382,7 @@ void COM_commad_parse (void) {
     char *ptr;
 	char c;
 	unsigned char i = 0;	
+    signed short target = 0;
 	static CAN_STATE state = CAN_STATE_WAIT_SOH;
 
 	while (COM_requests) {
@@ -412,13 +417,17 @@ void COM_commad_parse (void) {
 					break;
 				}
 				case CAN_STATE_CMD:{
-					if(c != ' '){
-						can_buffer[i++] = c;
-						break;
-					}
-					can_buffer[i++] = '\0';
-					i = 0;
-					state = CAN_STATE_CHECKSUM;
+                    switch(c){
+                        case '#': 
+					        state = CAN_STATE_CHECKSUM;
+                            can_buffer[i++] = '\0';
+                            i = 0;
+                            break;
+                        default:
+						    can_buffer[i++] = c;
+                            break;
+                    
+                    }
                     break;
 				}
                 case CAN_STATE_CHECKSUM:
@@ -427,36 +436,35 @@ void COM_commad_parse (void) {
                         break;
                     } 
                     can_checksum[i] = 0;
-                    //remove \r
-                    checksumRead = atoi(can_checksum+1);
+                    //remove #
+                    checksum -= '#';
+
+                    checksumRead = atoi(can_checksum);
                     if(checksum == checksumRead){
                         for(unsigned char kk=0; kk < 100; kk++){
                             _delay_ms(2);
                         }
-                        if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),11)){
+                        if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),10)){
                             snprintf(can_buffer,10,"%d",temp_average);
-                        }else	if(0 == strncmp_P(can_buffer, PSTR("getTargetTemp"),14)){
+                        }else	if(0 == strncmp_P(can_buffer, PSTR("getTargetTemp"),13)){
                             snprintf(can_buffer,10,"%d",calc_temp(CTL_temp_wanted_last));
 
-                        }else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),14)){
+                        }else if(0 == strncmp_P(can_buffer, PSTR("setTargetTemp"),13)){
                             //state = CAN_STATE_CMD_SET_TEMP;
-
-                            if (COM_hex_parse(1*2)!='\0') {
-                                print_s_p(PSTR("wrong param"));
-                                goto resetCanState;
+                            target = atoi(can_buffer+13);
+                            target *= 2;
+                            if (target == 0) {
+                                snprintf(can_buffer,50,"WRONG PARAM");
+                            }else if (target < TEMP_MIN-1) {
+                                snprintf(can_buffer,50,"TEMP TO LOW");
+                            }else if (target>TEMP_MAX+1) {
+                                snprintf(can_buffer, 50, "TEMP TO HIGH");
+                            }else{
+                                CTL_set_temp(target);
+                                snprintf(can_buffer,10,"OK");
                             }
-                            if (com_hex[0]<TEMP_MIN-1) {
-                                print_s_p(PSTR("temp too low"));
-                                goto resetCanState;
-                            }
-                            if (com_hex[0]>TEMP_MAX+1) {
-                                print_s_p(PSTR("temp too high"));
-                                goto resetCanState;
-                            }
-                            CTL_set_temp(com_hex[0]);
-                            print_s_p(PSTR("OK"));
                         }else{
-                            print_s_p(PSTR("unknown cmd"));
+                            snprintf(can_buffer, 16, "UNKNOWN CMD");
                         }
                         checksum = 0;
                         ptr = can_buffer;
@@ -469,10 +477,10 @@ void COM_commad_parse (void) {
                         
                         COM_flush();
                     }else{
-                        print_s_p(PSTR("wrong crc "));
+                        snprintf(can_buffer,16," #%d - %d\n", checksum, checksumRead);
+                        print_s(can_buffer);
                         COM_flush();
                     }
-resetCanState:
                     state = CAN_STATE_WAIT_SOH;
                     break;
 
