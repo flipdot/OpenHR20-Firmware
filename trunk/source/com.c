@@ -446,6 +446,8 @@ void COM_commad_parse (void) {
                         }
                         if(0 == strncmp_P(can_buffer, PSTR("getActTemp"),10)){
                             snprintf(can_buffer,10,"%d",temp_average);
+                        }else if(0 == strncmp_P(can_buffer, PSTR("getActValve"),11)){
+                            snprintf(can_buffer,10,"%d", valve_wanted);
                         }else	if(0 == strncmp_P(can_buffer, PSTR("getTargetTemp"),13)){
                             snprintf(can_buffer,10,"%d",calc_temp(CTL_temp_wanted_last));
 
@@ -455,9 +457,9 @@ void COM_commad_parse (void) {
                             target *= 2;
                             if (target == 0) {
                                 snprintf(can_buffer,50,"WRONG PARAM");
-                            }else if (target < TEMP_MIN-1) {
+                            }else if (target < TEMP_MIN) {
                                 snprintf(can_buffer,50,"TEMP TO LOW");
-                            }else if (target>TEMP_MAX+1) {
+                            }else if (target>TEMP_MAX) {
                                 snprintf(can_buffer, 50, "TEMP TO HIGH");
                             }else{
                                 CTL_set_temp(target);
