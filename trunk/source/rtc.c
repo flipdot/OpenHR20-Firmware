@@ -232,10 +232,15 @@ bool RTC_DowTimerSet(rtc_dow_t dow, uint8_t slot, uint16_t time, timermode_t tim
  ******************************************************************************/
 uint16_t RTC_DowTimerGet(rtc_dow_t dow, uint8_t slot, timermode_t *timermode)
 {
+
+#if defined(MDR_WE_DONT_NEED_THAT_TIMER_STUFF)
     // to table format see to \ref ee_timers
     uint16_t raw=eeprom_timers_read_raw(timers_get_raw_index(dow,slot));
     *timermode = (timermode_t) (raw >> 12);
     return raw & 0xfff;
+#else
+    return 0xfff;
+#endif
 }
 
 /*!
@@ -252,7 +257,8 @@ uint16_t RTC_DowTimerGet(rtc_dow_t dow, uint8_t slot, timermode_t *timermode)
  ******************************************************************************/
 
 static uint8_t RTC_FindTimerRawIndex(uint8_t dow,uint16_t time_minutes) {
-    
+
+#if defined(MDR_WE_DONT_NEED_THAT_TIMER_STUFF)
     uint8_t search_timers=(dow>0)?8:2;
     int8_t raw_index=-1;
     uint8_t i;
@@ -278,7 +284,10 @@ static uint8_t RTC_FindTimerRawIndex(uint8_t dow,uint16_t time_minutes) {
         if (dow>0) dow=(dow+(7-2))%7+1;            
         time_minutes=24*60;
     }
-    return raw_index;    
+    return raw_index;
+#else
+    return -1;
+#endif
 }
 
 /*!
@@ -328,6 +337,7 @@ int32_t RTC_DowTimerGetHourBar(uint8_t dow) {
  ******************************************************************************/
 
 uint8_t RTC_ActualTimerTemperature(bool exact) {
+#if defined(MDR_WE_DONT_NEED_THAT_TIMER_STUFF)
     uint16_t minutes=RTC_hh*60 + RTC_mm;
     int8_t dow=((config.timer_mode==1)?RTC_DOW:0);
     int8_t raw_index=RTC_FindTimerRawIndex(dow,minutes);
@@ -338,6 +348,9 @@ uint8_t RTC_ActualTimerTemperature(bool exact) {
         if ((raw_index/RTC_TIMERS_PER_DOW) != dow) return 0;
     }
     return temperature_table[(data >> 12) & 3];
+#else
+    return 0;
+#endif
 }
 
 /*!

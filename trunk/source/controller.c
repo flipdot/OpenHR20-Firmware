@@ -80,7 +80,8 @@ static void CTL_window_detection(void) {
         }  
     } else {
         if (!CTL_mode_window && ((max-temp_average) > (int16_t) config.window_open_detection_diff)) {
-            CTL_mode_window=true;
+           // CTL_mode_window=true;
+            CTL_mode_window=false;
             PID_force_update = 0; 
         }
     }
