@@ -383,11 +383,11 @@ typedef enum{
 void COM_commad_parse (void) {
     static unsigned short checksum = 0;
     static unsigned short checksumRead = 0;
+    static unsigned char i = 0;
+    static CAN_STATE state = CAN_STATE_WAIT_SOH;
     char *ptr;
-	char c;
-	unsigned char i = 0;	
     signed short target = 0;
-	static CAN_STATE state = CAN_STATE_WAIT_SOH;
+    char c;
 
 	while (COM_requests) {
       	c=COM_getchar();
