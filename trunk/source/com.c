@@ -394,7 +394,7 @@ void COM_commad_parse (void) {
         if(state != CAN_STATE_CHECKSUM){
             checksum += c;
         }
-		if(c == ':'){
+		if(c == ':'){ // new message
 			i = 0;
             checksum = c;
             can_checksum[0] = 0;
@@ -487,22 +487,16 @@ void COM_commad_parse (void) {
                         
                         COM_flush();
                     }else{
-                        snprintf(can_buffer,16," #%d - %d\n", checksum, checksumRead);
+                        snprintf(can_buffer,CAN_BUFFER_SIZE,"crc miss %d - %d #1234\n", checksum, checksumRead);
                         print_s(can_buffer);
                         COM_flush();
                     }
                     state = CAN_STATE_WAIT_SOH;
                     break;
+                default:
+                    state = CAN_STATE_WAIT_SOH;
+                    break;
 
-				case CAN_STATE_CMD_SET_TEMP:{
-					if(c != '\n'){
-						can_buffer[i++] = c;
-						break;
-					}
-					can_buffer[i++] = '\0';
-					state = CAN_STATE_WAIT_SOH;
-
-				}
 			}
 		}	
 	}
