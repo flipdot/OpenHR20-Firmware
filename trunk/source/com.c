@@ -60,6 +60,10 @@
 #define TX_BUFF_SIZE 128
 #define RX_BUFF_SIZE 128
 
+
+#define CAN_BUFFER_SIZE 50
+#define CAN_CHECKSUM_SIZE 10
+
 static char tx_buff[TX_BUFF_SIZE];
 static char rx_buff[RX_BUFF_SIZE];
 
@@ -366,8 +370,8 @@ static void print_idx(char t) {
     COM_putchar('=');
 }
 
-char can_buffer[50];
-char can_checksum[10];
+char can_buffer[CAN_BUFFER_SIZE];
+char can_checksum[CAN_CHECKSUM_SIZE];
 typedef enum{
 	CAN_STATE_WAIT_SOH = 0,
 	CAN_STATE_NAME,
@@ -395,7 +399,11 @@ void COM_commad_parse (void) {
             checksum = c;
             can_checksum[0] = 0;
 			state = CAN_STATE_NAME;
-		}else{
+		}else{ // not ":"
+            if(CAN_BUFFER_SIZE < i){
+                state = CAN_STATE_WAIT_SOH;
+                break;
+            }
 			switch(state){
 				case CAN_STATE_WAIT_SOH:
 					break;
